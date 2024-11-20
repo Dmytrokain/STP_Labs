@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Table with Cats</title>
+    <style>
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+            text-align: center;
+        }
+        th, td {
+            padding: 10px;
+        }
+        button {
+            margin: 10px;
+        }
+        img {
+            max-width: 100px;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <h2 style="text-align: center;">PMA-11m Cats</h2>
+    <div style="text-align: center;">
+        <button onclick="addRow()">Add Row</button>
+    </div>
+    <table id="dynamicTable">
+        <thead>
+            <tr>
+                <th>Action</th>
+                <th>Cat Image</th>
+                <th>Remove</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><button onclick="fetchCatImage(this)">Get Cat</button></td>
+                <td class="cat-cell">No image yet</td>
+                <td><button onclick="removeRow(this)">Remove</button></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script>
+        const catApiUrl = 'https://api.thecatapi.com/v1/images/search';
+
+        async function fetchCatImage(buttonElement) {
+            const catCell = buttonElement.parentElement.nextElementSibling;
+            try {
+                const response = await fetch(catApiUrl);
+                const data = await response.json();
+                const catImageUrl = data[0].url;
+
+                catCell.innerHTML = `<img src="${catImageUrl}" alt="Cat Image">`;
+            } catch (error) {
+                catCell.textContent = 'Unable to fetch cat image';
+            }
+        }
+
+        function addRow() {
+            const table = document.getElementById("dynamicTable").getElementsByTagName("tbody")[0];
+            const newRow = table.insertRow();
+            const actionCell = newRow.insertCell(0);
+            const catCell = newRow.insertCell(1);
+            const removeCell = newRow.insertCell(2);
+
+            actionCell.innerHTML = '<button onclick="fetchCatImage(this)">Get Cat</button>';
+            catCell.className = 'cat-cell';
+            catCell.textContent = 'No image yet';
+            removeCell.innerHTML = '<button onclick="removeRow(this)">Remove</button>';
+        }
+
+        function removeRow(button) {
+            const row = button.parentElement.parentElement;
+            row.parentNode.removeChild(row);
+        }
+    </script>
+</body>
+</html>
