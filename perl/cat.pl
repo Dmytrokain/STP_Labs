@@ -1,70 +1,65 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
-use LWP::UserAgent;
-use JSON qw(decode_json);
-use threads;
+use Text::CSV;
 
-# Base URL for The Cat API
-my $BASE_URL = 'https://api.thecatapi.com/v1';
+# URL of the dataset
+my $csv_url = "https://raw.githubusercontent.com/Krista07/datasets/main/Cats.csv";
+my $csv_file = "Cats.csv";
 
-# Function to make API requests
-sub fetch_data {
-    my ($endpoint) = @_;
-    my $ua         = LWP::UserAgent->new;
-    my $url        = "$BASE_URL/$endpoint";
-    my $response   = $ua->get($url);
+# Download the CSV file if it doesn't exist locally
+if (!-e $csv_file) {
+    print "Downloading dataset...\n";
+    system("curl -o $csv_file $csv_url") == 0 or die "Failed to download dataset: $!";
+}
 
-    if ($response->is_success) {
-        return decode_json($response->decoded_content);
-    } else {
-        die "Failed to fetch $endpoint: " . $response->status_line;
+# Open the CSV file
+open(my $fh, '<', $csv_file) or die "Cannot open file '$csv_file': $!";
+
+# Initialize CSV parser
+my $csv = Text::CSV->new({ binary => 1, auto_diag => 1 });
+
+# Read the header row
+my $header = $csv->getline($fh);
+
+# Prepare data structures for analysis
+my %breeds_by_origin;
+my %coat_type_count;
+my %patterns;
+
+# Process each row in the CSV
+while (my $row = $csv->getline($fh)) {
+    my ($breed, $origin, $body_type, $coat_type, $pattern) = @$row;
+
+    # Count breeds by origin
+    $breeds_by_origin{$origin}++;
+
+    # Count breeds by coat type
+    $coat_type_count{$coat_type}++;
+
+    # Track unique coat patterns
+    $patterns{$pattern} = 1;
+
+    # Example of pattern matching: Find breeds with specific keywords in their name
+    if ($breed =~ /Maine|Persian|Siamese/) {
+        print "Special Breed Match: $breed (Origin: $origin, Coat Type: $coat_type, Pattern: $pattern)\n";
     }
 }
 
-# Function to fetch and display random cat images
-sub fetch_images {
-    my $data = fetch_data("images/search?limit=3");
-    print "\nRandom Cat Images:\n";
-    foreach my $i (0 .. $#{$data}) {
-        print ($i + 1) . ". $data->[$i]->{url}\n";
-    }
+close($fh);
+
+# Print analysis results
+print "\n=== Cat Breeds by Origin ===\n";
+foreach my $origin (sort keys %breeds_by_origin) {
+    printf "%-20s: %d breeds\n", $origin, $breeds_by_origin{$origin};
 }
 
-# Function to fetch and display cat breeds
-sub fetch_breeds {
-    my $data = fetch_data("breeds");
-    print "\nCat Breeds:\n";
-    foreach my $i (0 .. 4) {    # Display the first 5 breeds
-        print ($i + 1) . ". $data->[$i]->{name} - Origin: $data->[$i]->{origin}\n";
-    }
+print "\n=== Cat Breeds by Coat Type ===\n";
+foreach my $coat_type (sort keys %coat_type_count) {
+    printf "%-20s: %d breeds\n", $coat_type, $coat_type_count{$coat_type};
 }
 
-# Function to fetch and display categories
-sub fetch_categories {
-    my $data = fetch_data("categories");
-    print "\nCategories:\n";
-    foreach my $i (0 .. $#{$data}) {
-        print ($i + 1) . ". $data->[$i]->{name}\n";
-    }
+print "\n=== Unique Coat Patterns ===\n";
+foreach my $pattern (sort keys %patterns) {
+    print "- $pattern\n";
 }
-
-# Main function to run tasks concurrently
-sub main {
-    print "Fetching data from The Cat API...\n";
-
-    # Create threads for concurrent tasks
-    my $images_thread    = threads->create(\&fetch_images);
-    my $breeds_thread    = threads->create(\&fetch_breeds);
-    my $categories_thread = threads->create(\&fetch_categories);
-
-    # Wait for threads to complete
-    $images_thread->join();
-    $breeds_thread->join();
-    $categories_thread->join();
-
-    print "\nAll data fetched successfully!\n";
-}
-
-# Run the main function
-main();
